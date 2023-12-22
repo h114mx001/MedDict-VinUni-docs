@@ -1,0 +1,174 @@
+openapi: '3.0.2'
+info:
+  description: |-
+    API for MedDict-VinUni Backend.
+  license: 
+    name: MIT License
+    url: https://opensource.org/licenses/MIT
+  title: MedDict-VinUni Backend API
+  version: '1.0'
+servers:
+  - url: https://meddict-vinuni.com
+    description: Production server
+tags:
+  - name: search
+    description: Search words based on user's input. 
+  - name: admin
+    description: Managers' management on the dictionary.
+  - name: login
+    description: Authorization services. 
+paths:
+  /search:
+    get:
+      operationId: searchWordFromPatterns
+      summary: Search word from MedDict Database 
+      description: |-
+        Get results of word from input, which included the definitions, illustration, etc. The pattern follows the following Regular Expression
+        ```Python
+        import re 
+        pattern = f"^.*{pattern}.*$"
+        ```
+        Which means it will match any word that **INCLUDES** the pattern.
+      tags: 
+        - search
+      parameters:
+        - name: lang
+          in: query
+          description: Source language to search the pattern on.
+          required: true
+          explode: true
+          schema:
+            type: string
+            enum:
+              - en
+              - vn
+        - name: word
+          in: query
+          description: The pattern to search for.
+          required: true
+          explode: true
+          schema:
+            type: string
+          example: 'abdominal'  
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                $ref: "#/components/schemas/words"
+        '400':
+          description: The request is not following the convention.
+  /search/image:
+    get:
+      operationId: searchImageFromID
+      summary: Search image from MedDict Database, from the ID of the word
+      description: |-
+        Get the image (illustration) of the word from the ID of the word.
+      tags: 
+        - search
+      parameters:
+        - name: id
+          in: query
+          description: Source language to search the pattern on.
+          required: true
+          explode: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: OK
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: The request is not following the convention. 
+        '404':
+          description: The image is not found. 
+components:        
+  schemas:
+    words:
+      type: array
+      items:
+        type: object
+        xml:
+          name: 'item'
+        properties: 
+          id:
+            type: integer
+          en:
+            type: string
+          en_type: 
+            type: string 
+          vn: 
+            type: string
+          vn_type: 
+            type: string
+      example:
+        - en: abdominal pressure
+          en_type: n
+          id: 8
+          vn: áp lực khoang bụng
+          vn_type: danh từ
+        - en: abdominal aorta
+          en_type: n
+          id: 1
+          vn: động mạch chủ bụng
+          vn_type: danh từ
+        - en: abdominal aortic aneurysm
+          en_type: n
+          id: 2
+          vn: phình động mạch chủ bụng
+          vn_type: danh từ
+        - en: abdominal cavity
+          en_type: n
+          id: 3
+          vn: khoang ổ bụng
+          vn_type: danh từ
+        - en: abdominal decompression
+          en_type: n
+          id: 4
+          vn: giải áp khoang bụng
+          vn_type: danh từ
+        - en: abdominal esophagus
+          en_type: n
+          id: 5
+          vn: thực quản vùng bụng
+          vn_type: danh từ
+        - en: abdominal peritoneum
+          en_type: n
+          id: 7
+          vn: phúc mạc bụng
+          vn_type: danh từ
+        - en: abdominal paracentesis
+          en_type: n
+          id: 6
+          vn: chọc dò ổ bụng
+          vn_type: danh từ
+        - en: extra-abdominal
+          en_type: a
+          id: 2452
+          vn: ngoài bụng
+          vn_type: tính từ
+        - en: intra-abdominal abscess
+          en_type: n
+          id: 5515
+          vn: áp-xe bụng trong bụng
+          vn_type: danh từ
+        - en: tuboabdominal pregnancy
+          en_type: n
+          id: 8727
+          vn: mang thai lạc vị vòi tử cung-ổ bụng
+          vn_type: danh từ
+
+  securitySchemes: 
+    BasicAuth:
+      type: http
+      scheme: basic
+
+
+      
