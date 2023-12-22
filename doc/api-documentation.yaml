@@ -12,11 +12,11 @@ servers:
     description: Production server
 tags:
   - name: search
-    description: Search words based on user's input. 
+    description: Search words based on user's input. This is public API for everyone to develop their own application with our dictionary.
   - name: admin
-    description: Managers' management on the dictionary.
+    description: Managers' management on the dictionary. This is private API for managers to manage the dictionary. 
   - name: login
-    description: Authorization services. 
+    description: Authorization services. This is private API for managers to login to the admin dashboard.
 paths:
   /search:
     get:
