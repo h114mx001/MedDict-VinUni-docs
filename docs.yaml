@@ -89,6 +89,39 @@ paths:
           description: The request is not following the convention. 
         '404':
           description: The image is not found. 
+
+  /admin/login:
+    post:
+      operationId: login
+      summary: Login to the admin page
+      description: |-
+        Login to the admin page, and get the token for the admin page.
+        **WARNING**: This is sample API, just for testing purpose.
+      tags: 
+        - login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: admin
+                password:
+                  type: string
+                  example: admin
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+      
 components:        
   schemas:
     words:
@@ -169,6 +202,4 @@ components:
     BasicAuth:
       type: http
       scheme: basic
-
-
       
