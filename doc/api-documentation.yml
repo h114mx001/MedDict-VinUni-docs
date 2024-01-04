@@ -11,17 +11,17 @@ servers:
   - url: https://meddict-vinuni.com
     description: Production server
 tags:
-  - name: search
-    description: Search words based on user's input. This is public API for everyone to develop their own application with our dictionary.
-  - name: admin
-    description: Managers' management on the dictionary. This is private API for managers to manage the dictionary. 
+  - name: words
+    description: API related to the words in the dictionary.
+  - name: pages
+    description: API related to the pages for convenience in managing the dictionary.
   - name: login
-    description: Authorization services. This is private API for managers to login to the admin dashboard.
+    description: Authorization services. This is authorized API for managers to login to the admin dashboard.
 paths:
-  /search:
+  /words:
     get:
-      operationId: searchWordFromPatterns
-      summary: Search word from MedDict Database 
+      operationId: RetrieveWords
+      summary: Retrieve words from MedDict Database from pattern
       description: |-
         Get results of word from input, which included the definitions, illustration, etc. The pattern follows the following Regular Expression
         ```Python
@@ -30,7 +30,7 @@ paths:
         ```
         Which means it will match any word that **INCLUDES** the pattern.
       tags: 
-        - search
+        - words
       parameters:
         - name: lang
           in: query
@@ -60,18 +60,192 @@ paths:
                 $ref: "#/components/schemas/words"
         '400':
           description: The request is not following the convention.
-  /search/image:
-    get:
-      operationId: searchImageFromID
-      summary: Search image from MedDict Database, from the ID of the word
+    post:
+      operationId: CreateWord
+      summary: Create a new word in the database.
+      security:
+        - oAuthAdminMedDict: [admin]
       description: |-
-        Get the image (illustration) of the word from the ID of the word.
+        Create a new word in the database manually. 
       tags: 
-        - search
-      parameters:
+        - words
+      requestBody:
+        description: The word to be created, based on the following example
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                en:
+                  type: string
+                en_type:
+                  type: string
+                vn:
+                  type: string
+                vn_type:
+                  type: string
+              example:
+                en: Software Construction
+                en_type: n
+                vn: Xây dựng phần mềm
+                vn_type: danh từ
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                example:
+                  id: 1337
+        '400':
+          description: The request is not following the convention.
+        '403':
+          description: The user is not authorized to create a new word (aka. not admin).
+        '500':
+          description: The word is already in the database.
+    put:
+      operationId: UpdateWord
+      summary: Update a word in the database.
+      security:
+        - oAuthAdminMedDict: [admin]
+      description: |-
+        Update a word in the database manually. 
+      tags: 
+        - words
+      requestBody:
+        description: |-
+          The description of the word to be updated. Except the id, all other fields are optional. 
+          
+          If the field is provided, it will be **overwritten** with the data in the dictionary. However, if the field is not provided, the old data will **not be changed**. 
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                en:
+                  type: string
+                en_type:
+                  type: string
+                vn:
+                  type: string
+                vn_type:
+                  type: string
+              example:
+                id: 1337
+                en: Software Construction
+                en_type: n
+                vn: Xây dựng phần mềm
+                vn_type: danh từ
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: The request is not following the convention.
+        '403':
+          description: The user is not authorized to update a word (aka. not admin).
+        '404':
+          description: The word id's is not found.
+        '500':
+          description: Unknown error.
+    delete:
+      operationId: DeleteWord
+      summary: Delete (a) word(s) in the database.
+      security:
+        - oAuthAdminMedDict: [admin]
+      description: |-
+        Delete (a) word(s) in the database manually.
+      tags: 
+        - words
+      requestBody:
+        description: The id of the word(s) to be deleted. The array can be either empty, or contain multiple ids.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: integer
+              example:
+                - 1337
+                - 1338
+                - 1339
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: The request is not following the convention.
+        '403':
+          description: The user is not authorized to delete a word (aka. not admin).
+        '404':
+          description: The word id's is not found.
+        '500':
+          description: Unknown error.
+  /words/importxlsx:
+    post: 
+      operationId: ImportWords
+      summary: Import words from an Excel file.
+      security:
+        - oAuthAdminMedDict: [admin]
+      description: |-
+        Import words from an Excel file. The Excel file must follow [this template](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
+        **NOTES:** 
+        + The old data will **NOT** be **DELETED** or **OVERWRITTEN**, except if there is:
+          + A word with **EXACTLY** the same definition (in either English or Vietnamese)
+          + ...
+
+      tags:
+        - words
+      requestBody:
+        description: The Excel file to be imported. If the file is not valid, the API will return an error.
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+            encoding:
+              file:
+                contentType: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel
+      responses:
+        '200':
+          description: OK, together with the link to the illustration.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  link:
+                    type: string
+                example:
+                  link: https://meddict-vinuni.com/illustration/1.png
+        '400':
+          description: The request is not following the convention.
+        '403':
+          description: The user is not authorized to import words (aka. not admin).
+
+  /words/illustration:
+    get:
+      operationId: RetrieveIllustration
+      summary: Retrieve illustration from MedDict Database of a specific word, from its id.
+      description: |-
+        Get the illustration of a specific word, from its id.
+      tags: 
+        - words
+      parameters: 
         - name: id
           in: query
-          description: Source language to search the pattern on.
+          description: The id of the word to retrieve the illustration from.
           required: true
           explode: true
           schema:
@@ -80,48 +254,100 @@ paths:
       responses:
         '200':
           description: OK
-          content:
-            image/*:
+          content: 
+            image/png:
               schema:
                 type: string
                 format: binary
-        '400':
-          description: The request is not following the convention. 
         '404':
-          description: The image is not found. 
-
-  /admin/login:
-    post:
-      operationId: login
-      summary: Login to the admin page
+          description: The word id's is not found.
+        '400':
+          description: The request is not following the convention.
+        '500':
+          description: Unknown error.
+    post: 
+      operationId: UploadIllustration
+      summary: Upload a new illustration for a specific word, associated its id. 
       description: |-
-        Login to the admin page, and get the token for the admin page.
-        **WARNING**: This is sample API, just for testing purpose.
-      tags: 
-        - login
+        Upload a new illustration for a specific word, associated with its id. The illustration can be provided as a link to an image, or based on file upload.
+      tags:
+        - words
+      security:
+        - oAuthAdminMedDict: [admin]
       requestBody:
-        content:
-          application/json:
+        description: |-
+          The id of the word to upload the illustration to, and the ilustration itself. 
+          **NOTES**: The old illustration will be **overwritten** with the new one.
+        required: true
+        content: 
+          multipart/form-data:
             schema:
               type: object
               properties:
-                username:
+                id:
+                  type: integer
+                  
+                image:
                   type: string
-                  example: admin
-                password:
-                  type: string
-                  example: admin
+                  format: binary
+            encoding:
+              id:
+                contentType: application/json
+              image:
+                contentType: image/*
       responses:
         '200':
-          description: OK
+          description: OK, together with the link to the illustration.
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  token:
+                  link:
                     type: string
-      
+                example:
+                  link: https://meddict-vinuni.com/illustration/1.png
+  /pages:
+    get:
+      operationId: RetrievePages
+      summary: Retrieve words from the database, based on the starting letter.
+      tags: 
+        - pages
+      description: |-
+        Retrieve words from the database, based on the starting letter. The starting letter is based on the first letter of the **English** word. 
+        
+        The default offset for each page is currently **10**.
+      parameters:
+        - name: letter
+          in: query
+          description: |-
+            The starting letter of the words to be retrieved. It must be in **UPPERCASE**. Also, the API will return the total number of words for Frontend to calculate the number of pages.
+
+            **NOTES**:
+            + The page number is optional. If not provided, the API will return the first page.
+            + The page number starts from 1.
+
+          required: true
+          explode: true
+          schema:
+            type: string
+            example: A
+        - name: pages
+          in: query
+          description: The pages that the user wants to retrieve.
+          explode: true
+          schema:
+            type: integer
+          example: 1  
+      responses: 
+        '200': 
+          description: 'OK'
+          content: 
+            application/json:
+              schema:
+                type: object
+                $ref: "#/components/schemas/pages"
+
 components:        
   schemas:
     words:
@@ -197,9 +423,90 @@ components:
           id: 8727
           vn: mang thai lạc vị vòi tử cung-ổ bụng
           vn_type: danh từ
+    pages:
+      type: object 
+      properties: 
+        total:
+          type: integer
+          example: 98765
+        words:
+          $ref: "#/components/schemas/pages_word"
+    pages_word:
+      type: array
+      items:
+        type: object
+        xml:
+          name: 'item'
+        properties: 
+          id:
+            type: integer
+          en:
+            type: string
+          en_type: 
+            type: string 
+          vn: 
+            type: string
+          vn_type: 
+            type: string
+      example:
+        - en: abdominal aorta
+          en_type: n
+          id: 1
+          vn: động mạch chủ bụng
+          vn_type: danh từ
+        - en: abdominal aortic aneurysm
+          en_type: n
+          id: 2
+          vn: phình động mạch chủ bụng
+          vn_type: danh từ
+        - en: AEP (auditory evoked potential)
+          en_type: n
+          id: 17
+          vn: Viết tắt của Điện thế gợi thính giác
+          vn_type: danh từ
+        - en: aeroallergen
+          en_type: n
+          id: 18
+          vn: Dị nguyên trong không khí
+          vn_type: danh từ
+        - en: affluxion
+          en_type: n
+          id: 19
+          vn: Chảy dồn
+          vn_type: danh từ
+        - en: AFib (atrial fibrillation)
+          en_type: n
+          id: 20
+          vn: Viết tắt của Rung nhĩ
+          vn_type: danh từ
+        - en: AFO (ankle-foot orthosis)
+          en_type: n
+          id: 21
+          vn: Viết tắt của Nẹp cổ bàn chân
+          vn_type: danh từ
+        - en: afterdischarge
+          en_type: n
+          id: 22
+          vn: Kích ứng lưu tồn
+          vn_type: danh từ
+        - en: afterimpression
+          en_type: n
+          id: 23
+          vn: Cảm giác lưu tồn
+          vn_type: danh từ
+        - en: aftermath
+          en_type: n
+          id: 24
+          vn: Hậu quả xấu
+          vn_type: danh từ
+
 
   securitySchemes: 
-    BasicAuth:
-      type: http
-      scheme: basic
-      
+    oAuthAdminMedDict: 
+      type: oauth2 
+      description: This API uses OAuth 2 with the implicit flow.
+      flows:
+        implicit:
+          authorizationUrl: https://meddict-vinuni.com/login
+          scopes: 
+            admin: Admin access
