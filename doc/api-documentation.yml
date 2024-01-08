@@ -325,16 +325,11 @@ paths:
           description: The target language to retrieve the sound from. Must be either "en" or "vn".
           required: true
           explode: true
-          # schema:
-          #   type: string
-          example: "en"
-          content:
-            application/json:
-              schema:
-                type: string
-                enum:
-                  - en
-                  - vn
+          schema:
+            type: string
+            enum:
+              - en
+              - vn
         - name: id
           in: path
           description: The id of the word to retrieve the sound from.
