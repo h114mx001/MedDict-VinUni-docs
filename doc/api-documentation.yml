@@ -310,7 +310,7 @@ paths:
                 example:
                   link: https://meddict-vinuni.com/illustration/1.png
   
-  /pages/sound/{lang}/{id}:
+  /words/sound/{lang}/{id}:
     get:
       operationId: RetrieveSound
       summary: Retrieve sound from MedDict Database of a specific word, from its id. 
