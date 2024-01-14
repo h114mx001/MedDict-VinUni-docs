@@ -17,8 +17,11 @@ tags:
     description: API related to the words in the dictionary.
   - name: pages
     description: API related to the pages for convenience in managing the dictionary.
-  - name: login
-    description: Authorization services. This is authorized API for managers to login to the admin dashboard.
+  - name: user
+    description: API related to user management. 
+  - name: auth 
+    description: API related to authentication and authorization.
+
 paths:
   /words:
     get:
@@ -66,7 +69,7 @@ paths:
       operationId: CreateWord
       summary: Create a new word in the database.
       security:
-        - oAuthAdminMedDict: [admin]
+        - APIKeyCookie: []
       description: |-
         Create a new word in the database manually. 
       tags: 
@@ -114,7 +117,7 @@ paths:
       operationId: UpdateWord
       summary: Update a word in the database.
       security:
-        - oAuthAdminMedDict: [admin]
+        - APIKeyCookie: []
       description: |-
         Update a word in the database manually. 
       tags: 
@@ -161,7 +164,7 @@ paths:
       operationId: DeleteWord
       summary: Delete (a) word(s) in the database.
       security:
-        - oAuthAdminMedDict: [admin]
+        - APIKeyCookie: []
       description: |-
         Delete (a) word(s) in the database manually.
       tags: 
@@ -195,7 +198,7 @@ paths:
       operationId: ImportWords
       summary: Import words from an Excel file.
       security:
-        - oAuthAdminMedDict: [admin]
+        - APIKeyCookie: []
       description: |-
         Import words from an Excel file. The Excel file must follow [this template](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
         **NOTES:** 
@@ -275,7 +278,7 @@ paths:
       tags:
         - words
       security:
-        - oAuthAdminMedDict: [admin]
+        - APIKeyCookie: []
       requestBody:
         description: |-
           The id of the word to upload the illustration to, and the ilustration itself. 
@@ -359,6 +362,8 @@ paths:
         Retrieve words from the database, based on the starting letter. The starting letter is based on the first letter of the **English** word. 
         
         The default offset for each page is currently **10**.
+      security:
+        - APIKeyCookie: []
       parameters:
         - name: letter
           in: query
@@ -368,7 +373,6 @@ paths:
             **NOTES**:
             + The page number is optional. If not provided, the API will return the first page.
             + The page number starts from 1.
-
           required: true
           explode: true
           schema:
@@ -389,7 +393,231 @@ paths:
               schema:
                 type: object
                 $ref: "#/components/schemas/pages"
-  
+
+  /auth/google/authorize:
+    get:
+      tags:
+      - auth
+      summary: Oauth:Google.Jwt.Authorize
+      operationId: oauth_google_jwt_authorize_auth_google_authorize_get
+      parameters:
+      - name: scopes
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Scopes
+      description: |-
+        Call this API for a link that allows the user to redirect to Google Sign In page, and then redirect back to the callback API.
+
+        Only valid users (aka appear in "whitelist") that allows to sign in with the application.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/OAuth2AuthorizeResponse"
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+  /auth/google/callback:
+    get:
+      tags:
+      - auth
+      summary: Oauth:Google.Jwt.Callback
+      description: The response varies based on the authentication backend used.
+      operationId: oauth_google_jwt_callback_auth_google_callback_get
+      parameters:
+      - name: code
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Code
+      - name: code_verifier
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Code Verifier
+      - name: state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State
+      - name: error
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '400':
+          content:
+            application/json:
+              examples:
+                INVALID_STATE_TOKEN:
+                  summary: Invalid state token.
+                LOGIN_BAD_CREDENTIALS:
+                  summary: User is inactive.
+                  value:
+                    detail: LOGIN_BAD_CREDENTIALS
+              schema:
+                "$ref": "#/components/schemas/ErrorModel"
+          description: Bad Request
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+
+  /user:
+    get:
+      tags: 
+        - user
+      summary: Get information about this user
+      operationId: authenticated_route_authenticated_route_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/text:
+              schema: {}
+              example: "Hello abcxyz@gmail.com. Your role is hecker."
+      security:
+      - APIKeyCookie: []
+    post:
+      tags:
+        - user
+      summary: Add User
+      operationId: add_user_user_post
+      description: |-
+        Add a new user to the whitelist. The user will be able to sign in with the application. 
+
+        **Note**:
+          + The system can only have 01 superadmin. 
+          + "manager" can't add more users. 
+          + "admin" can't add more superadmins.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Request_Add_Whitelist"
+        required: true
+      responses:
+        '200':
+          description: Successful Response. Either added successfully or already exists.
+          content:
+            application/json:
+              schema: 
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    enum:
+                      - User added successfully.
+                      - User already exists.
+        '400': 
+          description: Invalid added roles
+          content: 
+            application/json:
+              schema: 
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    default: Invalid added roles.
+        '401':
+          description: Unauthorized 
+          content: 
+            application/json:
+              schema: 
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    default: Unauthorized
+
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+      security:
+      - APIKeyCookie: []
+    delete:
+      tags: 
+        - user
+      summary: Remove User
+      operationId: remove_user_user_delete
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Request_Remove_Whitelist"
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: 
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    enum:
+                      - User removed
+        '400': 
+          description: Cannot find user
+          content: 
+            application/json:
+              schema: 
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    default: Cannot find user
+        '401':
+          description: Unauthorized 
+          content: 
+            application/json:
+              schema: 
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    default: Unauthorized
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/HTTPValidationError"
+      security:
+      - APIKeyCookie: []
 components:        
   schemas:
     words:
@@ -542,13 +770,87 @@ components:
           vn: Hậu quả xấu
           vn_type: danh từ
 
-
-  securitySchemes: 
-    oAuthAdminMedDict: 
-      type: oauth2 
-      description: This API uses OAuth 2 with the implicit flow.
-      flows:
-        implicit:
-          authorizationUrl: https://meddict-vinuni.com/login
-          scopes: 
-            admin: Admin access
+    ErrorModel:
+      properties:
+        detail:
+          anyOf:
+          - type: string
+          - additionalProperties:
+              type: string
+            type: object
+          title: Detail
+      type: object
+      required:
+      - detail
+      title: ErrorModel
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            "$ref": "#/components/schemas/ValidationError"
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    OAuth2AuthorizeResponse:
+      properties:
+        authorization_url:
+          type: string
+          title: Authorization Url
+      type: object
+      required:
+      - authorization_url
+      title: OAuth2AuthorizeResponse
+    Request_Add_Whitelist:
+      properties:
+        email:
+          type: string
+          title: Email
+          example: "abcxyz@gmail.com"
+        role:
+          type: string
+          title: Role
+          enum:
+            - superadmin
+            - admin
+            - manager
+      type: object
+      required:
+      - email
+      - role
+      title: Request_Add_Whitelist
+    Request_Remove_Whitelist:
+      properties:
+        email:
+          type: string
+          title: Email
+      type: object
+      required:
+      - email
+      title: Request_Remove_Whitelist
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+  securitySchemes:
+    APIKeyCookie:
+      type: apiKey
+      in: cookie
+      name: fastapiusersauth
